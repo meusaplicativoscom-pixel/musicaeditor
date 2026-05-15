@@ -1,0 +1,485 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>projeto</title>
+<style>
+body{
+  background:#f0f0f0;
+  text-align:center;
+}
+h1{
+  color:blue;
+}
+  
+</style>
+</head>
+<body>
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Editor Musical</title>
+
+<script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial;
+}
+
+body{
+    background:#0f172a;
+    color:white;
+    padding:30px;
+}
+
+.container{
+    max-width:1200px;
+    margin:auto;
+}
+
+.panel{
+    background:#1e293b;
+    padding:20px;
+    border-radius:16px;
+    margin-bottom:20px;
+}
+
+h1{margin-bottom:20px;}
+
+.input-group{margin-bottom:15px;}
+
+label{
+    display:block;
+    margin-bottom:6px;
+}
+
+input[type="text"]{
+    width:100%;
+    padding:12px;
+    border:none;
+    border-radius:10px;
+}
+
+#waveform{
+    margin-top:20px;
+    background:#111827;
+    border-radius:12px;
+}
+
+.controls{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-top:20px;
+}
+
+button{
+    border:none;
+    padding:12px 16px;
+    border-radius:10px;
+    cursor:pointer;
+    color:white;
+    font-weight:bold;
+}
+
+.play{background:#22c55e;}
+.pause{background:#f59e0b;}
+.stop{background:#ef4444;}
+.mark{background:#3b82f6;}
+.download{background:#8b5cf6;}
+
+.timeline{
+    background:#1e293b;
+    padding:20px;
+    border-radius:16px;
+}
+
+.marker{
+    background:#334155;
+    padding:15px;
+    border-radius:12px;
+    margin-bottom:10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    border-left:8px solid #3b82f6;
+}
+
+.marker-left{
+    display:flex;
+    gap:15px;
+    align-items:center;
+}
+
+.time{
+    color:#60a5fa;
+    font-weight:bold;
+}
+
+.mini-map{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-top:20px;
+}
+
+.block{
+    padding:10px 14px;
+    border-radius:10px;
+    cursor:pointer;
+    font-weight:bold;
+}
+
+select{
+    padding:12px;
+    border-radius:10px;
+    border:none;
+}
+
+.download-options{
+    margin-top:20px;
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+}
+
+.zoom-box{margin-top:20px;}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>🎵 Editor Musical</h1>
+
+<div class="panel">
+
+    <div class="input-group">
+        <label>Nome da Música</label>
+        <input type="text" id="musicName">
+    </div>
+
+    <div class="input-group">
+        <label>Tom</label>
+        <input type="text" id="musicKey">
+    </div>
+
+    <div class="input-group">
+        <label>Autor</label>
+        <input type="text" id="musicAuthor">
+    </div>
+
+    <div class="input-group">
+        <label>Carregar Música</label>
+        <input type="file" id="audioFile" accept="audio/*">
+    </div>
+
+    <div id="waveform"></div>
+
+    <div class="zoom-box">
+        <label>Zoom</label>
+        <input type="range" min="10" max="500" value="100" id="zoomSlider">
+    </div>
+
+    <div class="controls">
+        <button class="play" id="playBtn">▶ Play</button>
+        <button class="pause" id="pauseBtn">⏸ Pause</button>
+        <button class="stop" id="stopBtn">⏹ Stop</button>
+        <button class="mark" id="markBtn">📍 Marcar</button>
+    </div>
+
+    <div class="download-options">
+
+        <select id="downloadType">
+            <option value="json">Download JSON</option>
+            <option value="pdf">Download PDF</option>
+        </select>
+
+        <button class="download" id="downloadBtn">⬇ Download</button>
+    </div>
+
+</div>
+
+<div class="timeline">
+
+    <h2>Estrutura</h2>
+    <div id="markers"></div>
+    <div class="mini-map" id="miniMap"></div>
+
+</div>
+
+</div>
+
+<script>
+
+let wavesurfer;
+let markers = [];
+
+const audioFile = document.getElementById("audioFile");
+const playBtn = document.getElementById("playBtn");
+const pauseBtn = document.getElementById("pauseBtn");
+const stopBtn = document.getElementById("stopBtn");
+const markBtn = document.getElementById("markBtn");
+const zoomSlider = document.getElementById("zoomSlider");
+
+const downloadBtn = document.getElementById("downloadBtn");
+const downloadType = document.getElementById("downloadType");
+
+const musicName = document.getElementById("musicName");
+const musicKey = document.getElementById("musicKey");
+const musicAuthor = document.getElementById("musicAuthor");
+
+const markersDiv = document.getElementById("markers");
+const miniMap = document.getElementById("miniMap");
+
+/* ===== AUDIO ===== */
+
+audioFile.onchange = (e) => {
+
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (wavesurfer) wavesurfer.destroy();
+
+    wavesurfer = WaveSurfer.create({
+        container: "#waveform",
+        waveColor: "#60a5fa",
+        progressColor: "#2563eb",
+        cursorColor: "#fff",
+        height: 140
+    });
+
+    wavesurfer.loadBlob(file);
+};
+
+/* ===== CONTROLES ===== */
+
+playBtn.onclick = () => wavesurfer && wavesurfer.play();
+pauseBtn.onclick = () => wavesurfer && wavesurfer.pause();
+stopBtn.onclick = () => wavesurfer && wavesurfer.stop();
+
+zoomSlider.oninput = () => {
+    if (wavesurfer) wavesurfer.zoom(Number(zoomSlider.value));
+};
+
+/* ===== MARCAR ===== */
+
+markBtn.onclick = () => {
+
+    if (!wavesurfer) return;
+
+    const time = wavesurfer.getCurrentTime();
+    const name = prompt("Nome do marcador:");
+    if (!name) return;
+
+    markers.push({
+        id: Date.now(),
+        time,
+        name
+    });
+
+    renderMarkers();
+};
+
+/* ===== RENDER ===== */
+
+function renderMarkers(){
+
+    markers.sort((a,b)=>a.time-b.time);
+
+    markersDiv.innerHTML = "";
+    miniMap.innerHTML = "";
+
+    markers.forEach(m => {
+
+        const el = document.createElement("div");
+        el.className = "marker";
+
+        el.innerHTML = `
+            <div class="marker-left">
+                <div class="time">${formatTime(m.time)}</div>
+                <div>${m.name}</div>
+            </div>
+            <div>
+                <button onclick="editMarker(${m.id})">Editar</button>
+                <button onclick="deleteMarker(${m.id})">Excluir</button>
+            </div>
+        `;
+
+        el.onclick = (e) => {
+            if (e.target.tagName !== "BUTTON") {
+                wavesurfer.seekTo(m.time / wavesurfer.getDuration());
+            }
+        };
+
+        markersDiv.appendChild(el);
+
+        const b = document.createElement("div");
+        b.className = "block";
+        b.style.background = "#3b82f6";
+        b.innerText = m.name;
+
+        miniMap.appendChild(b);
+    });
+}
+
+function editMarker(id){
+    const m = markers.find(x=>x.id===id);
+    const novo = prompt("Editar:", m.name);
+    if(!novo) return;
+    m.name = novo;
+    renderMarkers();
+}
+
+function deleteMarker(id){
+    markers = markers.filter(x=>x.id!==id);
+    renderMarkers();
+}
+
+/* ===== DOWNLOAD ===== */
+
+downloadBtn.onclick = () => {
+    if(downloadType.value === "json") downloadJSON();
+    else downloadPDF();
+};
+
+function downloadJSON(){
+
+    const data = {
+        musica: musicName.value,
+        tom: musicKey.value,
+        autor: musicAuthor.value,
+        estrutura: markers.map(m => ({
+            tempo: formatTime(m.time),
+            nome: m.name
+        }))
+    };
+
+    const blob = new Blob([JSON.stringify(data,null,2)], {type:"application/json"});
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = (musicName.value || "musica") + ".json";
+    a.click();
+}
+
+/* ===== PDF FINAL ===== */
+
+function downloadPDF(){
+
+    const win = window.open("", "_blank");
+
+    const header = `
+        <div style="display:flex;justify-content:space-between;
+        font-family:Arial;font-size:12px;border-bottom:1px solid #ccc;
+        padding-bottom:10px;margin-bottom:20px;">
+            <div><b>Música:</b> ${musicName.value||"-"}</div>
+            <div><b>Autor:</b> ${musicAuthor.value||"-"}</div>
+            <div><b>Tom:</b> ${musicKey.value||"-"}</div>
+        </div>
+    `;
+
+    let body = "";
+
+    markers.forEach(m => {
+        body += `
+            <div style="margin-bottom:20px;font-family:Arial;">
+                ${formatPDF(m.name)}
+            </div>
+        `;
+    });
+
+    win.document.write(`
+        <html>
+        <body style="padding:30px;">
+            ${header}
+            ${body}
+        </body>
+        </html>
+    `);
+
+    win.document.close();
+    win.print();
+}
+
+/* ===== FORMATAÇÃO PDF ===== */
+
+function formatPDF(text){
+
+    if(!text) return "";
+
+    // 1. ÚNICO QUE QUEBRA LINHA: ponto "."
+    const lines = text.split(".").map(l => l.trim()).filter(Boolean);
+
+    return lines.map(line => {
+
+        let size = "16px";
+
+        // separa por espaço (inclui - como parte do fluxo)
+        const words = line.split(" ");
+
+        let html = "";
+
+        words.forEach(w => {
+
+            let color = "#111";
+
+            // estilos
+            if(w.includes("(v)")) color = "red";
+            if(w.includes("(g)")) size = "22px";
+            if(w.includes("(gg)")) size = "28px";
+            if(w.includes("(p)")) size = "12px";
+            if(w.includes("(pp)")) size = "10px";
+
+            // limpa tags
+            const clean = w
+                .replace("(v)","")
+                .replace("(g)","")
+                .replace("(gg)","")
+                .replace("(p)","")
+                .replace("(pp)","");
+
+            html += `
+                <span style="color:${color};font-size:${size};margin-right:6px;">
+                    ${clean}
+                </span>
+            `;
+        });
+
+        return `<div style="margin-bottom:12px;">${html}</div>`;
+    }).join("");
+}
+/* ===== UTIL ===== */
+
+function formatTime(s){
+    const m = Math.floor(s/60);
+    const sec = Math.floor(s%60);
+    return `${m}:${sec.toString().padStart(2,"0")}`;
+}
+
+</script>
+
+</body>
+</html>
+
+<script>
+console.log("Funcionando!");
+  
+</script>
+
+</body>
+</html>
+  
