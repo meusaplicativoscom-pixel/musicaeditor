@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -27,7 +28,7 @@ h1{
 <title>Editor Musical</title>
 
 <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
-
+<script src="https://cdn.jsdelivr.net/npm/meyda/dist/web/meyda.min.js"></script>
 <style>
 
 *{
@@ -210,6 +211,9 @@ select{
         <button class="pause" id="pauseBtn">⏸ Pause</button>
         <button class="stop" id="stopBtn">⏹ Stop</button>
         <button class="mark" id="markBtn">📍 Marcar</button>
+        <button class="mark" id="autoDetectBtn">
+🤖 Verificação Automática
+</button>
     </div>
 
     <div class="download-options">
@@ -244,6 +248,7 @@ const playBtn = document.getElementById("playBtn");
 const pauseBtn = document.getElementById("pauseBtn");
 const stopBtn = document.getElementById("stopBtn");
 const markBtn = document.getElementById("markBtn");
+const autoDetectBtn = document.getElementById("autoDetectBtn");
 const zoomSlider = document.getElementById("zoomSlider");
 
 const downloadBtn = document.getElementById("downloadBtn");
@@ -266,12 +271,18 @@ audioFile.onchange = (e) => {
     if (wavesurfer) wavesurfer.destroy();
 
     wavesurfer = WaveSurfer.create({
-        container: "#waveform",
-        waveColor: "#60a5fa",
-        progressColor: "#2563eb",
-        cursorColor: "#fff",
-        height: 140
-    });
+    container: "#waveform",
+    waveColor: "#60a5fa",
+    progressColor: "#2563eb",
+    cursorColor: "#fff",
+    height: 140,
+
+    normalize: true,
+    minPxPerSec: 50,
+    barWidth: 2,
+    barGap: 1,
+    barRadius: 4
+});
 
     wavesurfer.loadBlob(file);
 };
@@ -340,7 +351,15 @@ function renderMarkers(){
 
         const b = document.createElement("div");
         b.className = "block";
-        b.style.background = "#3b82f6";
+        if(m.name === "Refrão"){
+    b.style.background = "#ef4444";
+}
+else if(m.name === "Introdução"){
+    b.style.background = "#22c55e";
+}
+else{
+    b.style.background = "#3b82f6";
+}
         b.innerText = m.name;
 
         miniMap.appendChild(b);
@@ -481,7 +500,89 @@ function formatTime(s){
     const sec = Math.floor(s%60);
     return `${m}:${sec.toString().padStart(2,"0")}`;
 }
+/* ===== DETECÇÃO AUTOMÁTICA ===== */
 
+autoDetectBtn.onclick = async () => {
+
+    if (!wavesurfer) {
+        alert("Carregue uma música primeiro");
+        return;
+    }
+
+    const decoded = wavesurfer.getDecodedData();
+
+    if (!decoded) {
+        alert("Erro ao analisar áudio");
+        return;
+    }
+
+    markers = [];
+
+    const channelData = decoded.getChannelData(0);
+
+    analyzeMusic(channelData, decoded.sampleRate);
+};
+
+function analyzeMusic(data, sampleRate){
+
+    const windowSize = sampleRate * 5;
+
+    let sections = [];
+
+    for(let i = 0; i < data.length; i += windowSize){
+
+        let sum = 0;
+
+        for(let j = i; j < i + windowSize && j < data.length; j++){
+
+            sum += Math.abs(data[j]);
+        }
+
+        const energy = sum / windowSize;
+
+        sections.push({
+            time: i / sampleRate,
+            energy
+        });
+    }
+
+    detectSections(sections);
+}
+
+function detectSections(sections){
+
+    const maxEnergy = Math.max(...sections.map(s => s.energy));
+
+    let lastType = "";
+
+    sections.forEach(section => {
+
+        let type = "Verso";
+
+        if(section.energy < maxEnergy * 0.30){
+            type = "Introdução";
+        }
+
+        if(section.energy > maxEnergy * 0.75){
+            type = "Refrão";
+        }
+
+        if(type !== lastType){
+
+            markers.push({
+                id: Date.now() + Math.random(),
+                time: section.time,
+                name: type
+            });
+
+            lastType = type;
+        }
+    });
+
+    renderMarkers();
+
+    alert("Análise automática concluída!");
+}
 </script>
 
 </body>
