@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -200,7 +201,9 @@ select{
     </div>
 
     <div id="waveform"></div>
-
+    <div style="margin-top:10px;font-size:18px;font-weight:bold;">
+    ⏱ <span id="currentTime">0:00</span> / <span id="totalTime">0:00</span>
+</div>
     <div class="zoom-box">
         <label>Zoom</label>
         <input type="range" min="10" max="500" value="100" id="zoomSlider">
@@ -260,6 +263,8 @@ const musicAuthor = document.getElementById("musicAuthor");
 
 const markersDiv = document.getElementById("markers");
 const miniMap = document.getElementById("miniMap");
+const currentTimeEl = document.getElementById("currentTime");
+const totalTimeEl = document.getElementById("totalTime");
 
 /* ===== AUDIO ===== */
 
@@ -285,8 +290,22 @@ audioFile.onchange = (e) => {
 });
 
     wavesurfer.loadBlob(file);
-};
+function updateTime() {
+    currentTimeEl.textContent = formatTime(wavesurfer.getCurrentTime());
+}
 
+wavesurfer.on("audioprocess", updateTime);
+wavesurfer.on("seek", updateTime);
+wavesurfer.on("interaction", updateTime);
+wavesurfer.on("click", updateTime);
+
+wavesurfer.on("seek", () => {
+    currentTimeEl.textContent = formatTime(wavesurfer.getCurrentTime());
+});
+wavesurfer.on("ready", () => {
+    totalTimeEl.textContent = formatTime(wavesurfer.getDuration());
+});
+};
 /* ===== CONTROLES ===== */
 
 playBtn.onclick = () => wavesurfer && wavesurfer.play();
@@ -509,7 +528,28 @@ autoDetectBtn.onclick = async () => {
         return;
     }
 
-    const decoded = wavesurfer.getDecodedData();
+    autoDetectBtn.onclick = async () => {
+
+    if (!wavesurfer) {
+        alert("Carregue uma música primeiro");
+        return;
+    }
+
+    const buffer = wavesurfer.getDecodedData?.() || wavesurfer.backend?.buffer;
+
+    if (!buffer) {
+        alert("Áudio ainda não está pronto para análise");
+        return;
+    }
+
+    markers = [];
+
+    const channelData = buffer.getChannelData(0);
+
+    const sampleRate = buffer.sampleRate || 44100;
+
+    analyzeMusic(channelData, sampleRate);
+};
 
     if (!decoded) {
         alert("Erro ao analisar áudio");
@@ -520,7 +560,7 @@ autoDetectBtn.onclick = async () => {
 
     const channelData = decoded.getChannelData(0);
 
-    analyzeMusic(channelData, decoded.sampleRate);
+   analyzeMusic(channelData, wavesurfer.getDuration() > 0 ? wavesurfer.backend.buffer.sampleRate : 44100);
 };
 
 function analyzeMusic(data, sampleRate){
