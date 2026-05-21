@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -449,7 +450,7 @@ function formatA4Text(text){
 
     if(!text) return "";
 
-    // "." = quebra linha
+    // 1. quebra por "." (linhas reais)
     const lines = text
         .split(".")
         .map(l => l.trim())
@@ -457,64 +458,51 @@ function formatA4Text(text){
 
     return lines.map(line => {
 
-        let words = line.split(" ");
+        // 2. "-" mantém na mesma linha, só divide blocos
+        const parts = line
+            .split("-")
+            .map(p => p.trim())
+            .filter(Boolean);
 
-        let html = "";
+        return parts.map(part => {
 
-        words.forEach(w => {
+            const isV = part.includes("(v)");
+            const isP = part.includes("(p)");
+            const isPP = part.includes("(pp)");
+            const isG = part.includes("(g)");
+            const isGG = part.includes("(gg)");
 
             let color = "#111";
             let size = "22px";
 
-            // ===== REGRAS =====
+            if (isV) color = "red";
+            if (isP) size = "14px";
+            if (isPP) size = "10px";
+            if (isG) size = "30px";
+            if (isGG) size = "42px";
 
-            if(w.includes("(v)")){
-                color = "red";
-            }
-
-            if(w.includes("(p)")){
-                size = "14px";
-            }
-
-            if(w.includes("(pp)")){
-                size = "10px";
-            }
-
-            if(w.includes("(g)")){
-                size = "30px";
-            }
-
-            if(w.includes("(gg)")){
-                size = "42px";
-            }
-
-            // REMOVE TAGS
-
-            const clean = w
+            const clean = part
                 .replace("(v)", "")
                 .replace("(p)", "")
                 .replace("(pp)", "")
                 .replace("(g)", "")
-                .replace("(gg)", "");
+                .replace("(gg)", "")
+                .trim();
 
-            html += `
+            return `
                 <span style="
                     color:${color};
                     font-size:${size};
                     font-weight:bold;
-                    margin-right:6px;
+                    margin-right:10px;
                 ">
                     ${clean}
                 </span>
             `;
-        });
+        }).join("");
 
-        return `
-            <div style="margin-bottom:14px;">
-                ${html}
-            </div>
-        `;
-
+    }).map(lineHtml => {
+        return `<div style="margin-bottom:14px;">${lineHtml}</div>`;
     }).join("");
 }
 function renderMarkers(){
