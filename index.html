@@ -1,6 +1,3 @@
-
-
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -935,6 +932,30 @@ gdriveBtn.onclick = () => {
         "_blank"
     );
 };
+document.addEventListener("keydown", function(e) {
+
+    // elemento atual
+    const el = document.activeElement;
+
+    // verifica se está digitando
+    const digitando =
+        el.tagName === "INPUT" ||
+        el.tagName === "TEXTAREA" ||
+        el.isContentEditable;
+
+    // se estiver digitando, não faz nada
+    if (digitando) return;
+
+    // tecla espaço
+    if (e.code === "Space") {
+
+        e.preventDefault();
+
+        if (!wavesurfer) return;
+
+        wavesurfer.playPause();
+    }
+});
 </script>
 </body>
 </html>
