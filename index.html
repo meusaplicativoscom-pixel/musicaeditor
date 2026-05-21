@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -592,14 +593,21 @@ function downloadJSON(){
         musica: musicName.value,
         tom: musicKey.value,
         autor: musicAuthor.value,
+
+        folhaA4: a4Sheet.innerHTML,
+
         estrutura: markers.map(m => ({
-        tempo: formatTime(m.time),
-        segundos: m.time,
+            tempo: formatTime(m.time),
+            segundos: m.time,
             nome: m.name
         }))
     };
 
-    const blob = new Blob([JSON.stringify(data,null,2)], {type:"application/json"});
+    const blob = new Blob(
+        [JSON.stringify(data,null,2)],
+        {type:"application/json"}
+    );
+
     const url = URL.createObjectURL(blob);
 
     const a = document.createElement("a");
@@ -607,44 +615,40 @@ function downloadJSON(){
     a.download = (musicName.value || "musica") + ".json";
     a.click();
 }
-
 /* ===== PDF FINAL ===== */
 
 function downloadPDF(){
 
     const win = window.open("", "_blank");
 
-    const header = `
-        <div style="display:flex;justify-content:space-between;
-        font-family:Arial;font-size:12px;border-bottom:1px solid #ccc;
-        padding-bottom:10px;margin-bottom:20px;">
-            <div><b>Música:</b> ${musicName.value||"-"}</div>
-            <div><b>Autor:</b> ${musicAuthor.value||"-"}</div>
-            <div><b>Tom:</b> ${musicKey.value||"-"}</div>
-        </div>
-    `;
-
-    let body = "";
-
-    markers.forEach(m => {
-        body += `
-            <div style="margin-bottom:20px;font-family:Arial;">
-                ${formatPDF(m.name)}
-            </div>
-        `;
-    });
-
     win.document.write(`
         <html>
-        <body style="padding:30px;">
-            ${header}
-            ${body}
+        <head>
+            <title>${musicName.value}</title>
+
+            <style>
+                body{
+                    padding:40px;
+                    font-family:Arial;
+                    background:white;
+                    color:black;
+                }
+            </style>
+        </head>
+
+        <body>
+
+            ${a4Sheet.innerHTML}
+
         </body>
         </html>
     `);
 
     win.document.close();
-    win.print();
+
+    setTimeout(() => {
+        win.print();
+    }, 500);
 }
 
 /* ===== FORMATAÇÃO PDF ===== */
@@ -911,8 +915,9 @@ loadJsonFile.onchange = (e) => {
             }
 
             renderMarkers();
-            renderA4Sheet();
-
+            if(data.folhaA4){
+    a4Sheet.innerHTML = data.folhaA4;
+}
             alert("JSON carregado!");
 
         }catch(err){
