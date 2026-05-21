@@ -1,5 +1,6 @@
 
 
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -164,7 +165,41 @@ select{
 }
 
 .zoom-box{margin-top:20px;}
+/* ===== FOLHA A4 ===== */
 
+.sheet-container{
+    margin-top:30px;
+    display:flex;
+    justify-content:center;
+}
+
+.a4-sheet{
+    width:794px;
+    min-height:1123px;
+    background:white;
+    color:black;
+    padding:40px;
+    border-radius:10px;
+    box-shadow:0 0 20px rgba(0,0,0,0.4);
+    text-align:left;
+    overflow:auto;
+    transition:0.3s;
+    font-size:18px;
+    line-height:1.8;
+}
+
+/* tela cheia */
+
+.a4-fullscreen{
+    position:fixed;
+    top:0;
+    left:0;
+    width:100vw !important;
+    height:100vh !important;
+    z-index:9999;
+    border-radius:0;
+    padding:60px;
+}
 </style>
 </head>
 
@@ -220,7 +255,18 @@ select{
     </div>
 
     <div class="download-options">
+        <button class="download" id="loadJsonBtn">
+📂 Abrir JSON
+</button>
 
+<input type="file"
+       id="loadJsonFile"
+       accept=".json"
+       style="display:none;">
+
+<button class="download" id="gdriveBtn">
+☁ Google Drive
+</button>
         <select id="downloadType">
             <option value="json">Download JSON</option>
             <option value="pdf">Download PDF</option>
@@ -234,8 +280,21 @@ select{
 <div class="timeline">
 
     <h2>Estrutura</h2>
+
     <div id="markers"></div>
+
     <div class="mini-map" id="miniMap"></div>
+
+    <!-- FOLHA A4 -->
+    <div class="sheet-container">
+
+        <h2 style="margin-top:30px;">📝 Folha A4</h2>
+
+        <div id="a4Sheet" class="a4-sheet" contenteditable="true">
+
+        </div>
+
+    </div>
 
 </div>
 
@@ -255,6 +314,9 @@ const autoDetectBtn = document.getElementById("autoDetectBtn");
 const zoomSlider = document.getElementById("zoomSlider");
 
 const downloadBtn = document.getElementById("downloadBtn");
+const loadJsonBtn = document.getElementById("loadJsonBtn");
+const loadJsonFile = document.getElementById("loadJsonFile");
+const gdriveBtn = document.getElementById("gdriveBtn");
 const downloadType = document.getElementById("downloadType");
 
 const musicName = document.getElementById("musicName");
@@ -263,6 +325,7 @@ const musicAuthor = document.getElementById("musicAuthor");
 
 const markersDiv = document.getElementById("markers");
 const miniMap = document.getElementById("miniMap");
+const a4Sheet = document.getElementById("a4Sheet");
 const currentTimeEl = document.getElementById("currentTime");
 const totalTimeEl = document.getElementById("totalTime");
 
@@ -336,7 +399,126 @@ markBtn.onclick = () => {
 };
 
 /* ===== RENDER ===== */
+function renderA4Sheet(){
 
+    // CABEÇALHO
+
+    let header = `
+        <div style="
+            display:flex;
+            justify-content:space-between;
+            font-size:12px;
+            border-bottom:1px solid #ccc;
+            padding-bottom:10px;
+            margin-bottom:25px;
+            color:#444;
+            font-family:Arial;
+        ">
+
+            <div>
+                <b>Música:</b> ${musicName.value || "-"}
+            </div>
+
+            <div>
+                <b>Autor:</b> ${musicAuthor.value || "-"}
+            </div>
+
+            <div>
+                <b>Tom:</b> ${musicKey.value || "-"}
+            </div>
+
+        </div>
+    `;
+
+    // CONTEÚDO
+
+    let content = "";
+
+    markers.forEach(m => {
+
+        content += `
+            <div style="margin-bottom:20px;">
+                ${formatA4Text(m.name)}
+            </div>
+        `;
+    });
+
+    // JUNTA TUDO
+
+    a4Sheet.innerHTML = header + content;
+}
+function formatA4Text(text){
+
+    if(!text) return "";
+
+    // "." = quebra linha
+    const lines = text
+        .split(".")
+        .map(l => l.trim())
+        .filter(Boolean);
+
+    return lines.map(line => {
+
+        let words = line.split(" ");
+
+        let html = "";
+
+        words.forEach(w => {
+
+            let color = "#111";
+            let size = "22px";
+
+            // ===== REGRAS =====
+
+            if(w.includes("(v)")){
+                color = "red";
+            }
+
+            if(w.includes("(p)")){
+                size = "14px";
+            }
+
+            if(w.includes("(pp)")){
+                size = "10px";
+            }
+
+            if(w.includes("(g)")){
+                size = "30px";
+            }
+
+            if(w.includes("(gg)")){
+                size = "42px";
+            }
+
+            // REMOVE TAGS
+
+            const clean = w
+                .replace("(v)", "")
+                .replace("(p)", "")
+                .replace("(pp)", "")
+                .replace("(g)", "")
+                .replace("(gg)", "");
+
+            html += `
+                <span style="
+                    color:${color};
+                    font-size:${size};
+                    font-weight:bold;
+                    margin-right:6px;
+                ">
+                    ${clean}
+                </span>
+            `;
+        });
+
+        return `
+            <div style="margin-bottom:14px;">
+                ${html}
+            </div>
+        `;
+
+    }).join("");
+}
 function renderMarkers(){
 
     markers.sort((a,b)=>a.time-b.time);
@@ -382,6 +564,8 @@ else{
         b.innerText = m.name;
 
         miniMap.appendChild(b);
+
+        renderA4Sheet();
     });
 }
 
@@ -412,7 +596,8 @@ function downloadJSON(){
         tom: musicKey.value,
         autor: musicAuthor.value,
         estrutura: markers.map(m => ({
-            tempo: formatTime(m.time),
+        tempo: formatTime(m.time),
+        segundos: m.time,
             nome: m.name
         }))
     };
@@ -655,6 +840,101 @@ btnInstall.addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("sw.js");
 }
+/* ===== TELA CHEIA A4 ===== */
+
+let clickTimer = null;
+
+a4Sheet.addEventListener("click", () => {
+
+    if (clickTimer !== null) {
+
+        // DOUBLE CLICK
+        clearTimeout(clickTimer);
+        clickTimer = null;
+
+        a4Sheet.classList.remove("a4-fullscreen");
+
+    } else {
+
+        // SINGLE CLICK
+        clickTimer = setTimeout(() => {
+
+            a4Sheet.classList.add("a4-fullscreen");
+
+            clickTimer = null;
+
+        }, 250);
+    }
+});
+/* ===== ATUALIZA CABEÇALHO ===== */
+
+musicName.addEventListener("input", renderA4Sheet);
+musicAuthor.addEventListener("input", renderA4Sheet);
+musicKey.addEventListener("input", renderA4Sheet);
+/* ===== ABRIR JSON ===== */
+
+loadJsonBtn.onclick = () => {
+    loadJsonFile.click();
+};
+
+loadJsonFile.onchange = (e) => {
+
+    const file = e.target.files[0];
+
+    if(!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+
+        try{
+
+            const data = JSON.parse(event.target.result);
+
+            // CAMPOS
+
+            musicName.value = data.musica || "";
+            musicAuthor.value = data.autor || "";
+            musicKey.value = data.tom || "";
+
+            // MARCADORES
+
+            markers = [];
+
+            if(data.estrutura){
+
+                data.estrutura.forEach(item => {
+
+                    markers.push({
+                        id: Date.now() + Math.random(),
+                        time: item.segundos || 0,
+                        name: item.nome
+                    });
+                });
+            }
+
+            renderMarkers();
+            renderA4Sheet();
+
+            alert("JSON carregado!");
+
+        }catch(err){
+
+            alert("Erro ao abrir JSON");
+        }
+    };
+
+    reader.readAsText(file);
+};
+/* ===== GOOGLE DRIVE ===== */
+
+gdriveBtn.onclick = () => {
+
+    window.open(
+        "https://drive.google.com/drive/folders/1i-724zItu5uD57TEb89ONrDqcgYAvEvV?usp=drive_link",
+        "_blank"
+    );
+};
 </script>
 </body>
 </html>
